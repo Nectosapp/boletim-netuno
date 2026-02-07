@@ -689,12 +689,16 @@ def bloco_noticias_premium(items: List[Dict], title: str, traduzir: bool = False
 # ================= EMAIL (SMTP Gmail) =================
 def enviar_email_smtp(dest: List[str], assunto: str, html_corpo: str):
     """Envia email via SMTP do Gmail."""
-    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
+    # Limpa possíveis quebras de linha dos secrets
+    gmail_user = GMAIL_USER.strip()
+    gmail_pass = GMAIL_APP_PASSWORD.strip().replace(" ", "")
+
+    if not gmail_user or not gmail_pass:
         raise ValueError("Credenciais GMAIL_USER e GMAIL_APP_PASSWORD não configuradas!")
 
     msg = MIMEMultipart('alternative')
     msg['Subject'] = assunto
-    msg['From'] = f"Grupo Netuno <{GMAIL_USER}>"
+    msg['From'] = gmail_user
     msg['To'] = ", ".join(dest)
 
     # Anexa o HTML
@@ -704,8 +708,8 @@ def enviar_email_smtp(dest: List[str], assunto: str, html_corpo: str):
     # Conecta ao Gmail SMTP
     print(f"[*] Conectando ao SMTP Gmail...")
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-        server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-        server.sendmail(GMAIL_USER, dest, msg.as_string())
+        server.login(gmail_user, gmail_pass)
+        server.sendmail(gmail_user, dest, msg.as_string())
 
     print(f"[OK] E-mail enviado para {len(dest)} destinatários via Gmail SMTP.")
 
