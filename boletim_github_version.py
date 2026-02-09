@@ -294,15 +294,20 @@ def collect_radar_data(tickers: Dict[str, str], traduzir: bool = False) -> List[
                 continue
             # Pegar a notícia mais recente
             top = news_list[0] if isinstance(news_list, list) else None
-            if not top:
+            if not top or not isinstance(top, dict):
                 continue
-            # Extrair campos (formato pode variar entre versões do yfinance)
-            if isinstance(top, dict):
-                titulo = top.get("title", "")
-                link = top.get("link") or top.get("url", "")
-                publisher = top.get("publisher", "Yahoo Finance")
-            else:
-                continue
+            # yfinance retorna {"id":..., "content": {"title":..., ...}}
+            content = top.get("content", top)
+            titulo = content.get("title", "")
+            # URL: clickThroughUrl.url ou canonicalUrl.url
+            click = content.get("clickThroughUrl") or {}
+            canon = content.get("canonicalUrl") or {}
+            link = click.get("url") or canon.get("url") or content.get("link", "")
+            # Publisher
+            provider = content.get("provider") or {}
+            publisher = provider.get("displayName") if isinstance(provider, dict) else str(provider)
+            if not publisher:
+                publisher = "Yahoo Finance"
             if not titulo:
                 continue
             # Traduzir se necessário
