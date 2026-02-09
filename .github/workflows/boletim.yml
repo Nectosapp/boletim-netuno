@@ -3,7 +3,7 @@ name: Boletim Diário Grupo Netuno
 on:
   # Disparo automático às 07:00 Brasília (10:00 UTC)
   schedule:
-    - cron: '0 10 * * *'  # Todos os dias, 10:00 UTC = 07:00 BRT
+    - cron: '0 9 * * *'  # Todos os dias, 09:00 UTC = 06:00 BRT (compensar atraso do GitHub Actions)
 
   # Permite disparo manual pelo GitHub
   workflow_dispatch:
