@@ -19,6 +19,7 @@ import requests
 from bs4 import BeautifulSoup
 import feedparser
 from readability import Document
+import yfinance as yf
 
 # ================== CONFIG ==================
 DESTINATARIOS = [
@@ -80,6 +81,20 @@ GLOBAL_TICKERS = {
     "CL=F":"WTI", "BZ=F":"Brent", "GC=F":"Ouro", "BTC-USD":"Bitcoin",
     "BRL=X":"USD/BRL", "EURUSD=X":"EUR/USD"
 }
+
+# ===== Radar de Abertura (tickers monitorados) =====
+RADAR_BR = {
+    "PETR4.SA": "Petrobras",  "VALE3.SA": "Vale",  "ITUB4.SA": "Itaú Unibanco",
+    "BBDC4.SA": "Bradesco",   "BBAS3.SA": "Banco do Brasil",  "WEGE3.SA": "WEG",
+    "ABEV3.SA": "Ambev",      "SUZB3.SA": "Suzano",
+}
+RADAR_US = {
+    "AAPL": "Apple",  "MSFT": "Microsoft",  "NVDA": "Nvidia",  "AMZN": "Amazon",
+    "TSLA": "Tesla",  "META": "Meta",  "GOOGL": "Alphabet",  "JPM": "JPMorgan",
+}
+
+RECOMENDACAO_MAP = {"strongBuy": "Compra Forte", "buy": "Compra", "hold": "Neutro",
+                    "sell": "Venda", "strongSell": "Venda Forte"}
 
 # ===== Fontes =====
 SOURCES = [
@@ -238,6 +253,79 @@ def translate_to_pt(text: str) -> str:
         return "".join([seg[0] for seg in r.json()[0]])
     except Exception:
         return text
+
+# ========================= Radar de Abertura =========================
+def _get_consensus(ticker_obj) -> str:
+    """Extrai consenso de analistas (ex: 'Compra') do yfinance."""
+    try:
+        rec = ticker_obj.recommendations
+        if rec is None or rec.empty:
+            return ""
+        last = rec.iloc[-1]
+        counts = {k: int(last.get(k, 0)) for k in ["strongBuy", "buy", "hold", "sell", "strongSell"]}
+        best = max(counts, key=counts.get)
+        return RECOMENDACAO_MAP.get(best, "")
+    except Exception:
+        return ""
+
+def _get_target_price(ticker_obj, sym: str) -> str:
+    """Extrai preço-alvo médio dos analistas."""
+    try:
+        targets = ticker_obj.analyst_price_targets
+        if targets is None:
+            return ""
+        mean = targets.get("mean") or targets.get("current")
+        if mean is None:
+            return ""
+        prefix = "R$ " if sym.endswith(".SA") else "US$ "
+        return prefix + f"{float(mean):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return ""
+
+def collect_radar_data(tickers: Dict[str, str], traduzir: bool = False) -> List[Dict]:
+    """Coleta notícias recentes e dados de analistas para cada ticker."""
+    items = []
+    for sym, nome in tickers.items():
+        try:
+            t = yf.Ticker(sym)
+            # Notícias recentes
+            news_list = t.get_news(count=3) if hasattr(t, 'get_news') else (t.news or [])
+            if not news_list:
+                continue
+            # Pegar a notícia mais recente
+            top = news_list[0] if isinstance(news_list, list) else None
+            if not top:
+                continue
+            # Extrair campos (formato pode variar entre versões do yfinance)
+            if isinstance(top, dict):
+                titulo = top.get("title", "")
+                link = top.get("link") or top.get("url", "")
+                publisher = top.get("publisher", "Yahoo Finance")
+            else:
+                continue
+            if not titulo:
+                continue
+            # Traduzir se necessário
+            if traduzir:
+                titulo = translate_to_pt(titulo)
+            # Consenso e preço-alvo
+            consenso = _get_consensus(t)
+            alvo = _get_target_price(t, sym)
+            ticker_display = sym.replace(".SA", "")
+            items.append({
+                "ticker": ticker_display,
+                "nome": nome,
+                "titulo": titulo,
+                "link": link,
+                "publisher": publisher,
+                "consenso": consenso,
+                "alvo": alvo,
+            })
+            time.sleep(0.3)
+        except Exception as e:
+            print(f"[WARN] Radar: falha ao buscar {sym}: {e}")
+            continue
+    return items
 
 # ========================= Yahoo Finance =========================
 def _yahoo_quote_once(symbols: List[str], host: str):
@@ -522,6 +610,141 @@ def collect_news() -> Dict[str, List[Dict]]:
         out[k] = uniq[:MAX_BULLETS]
     return out
 
+# ================= Radar de Abertura (HTML) =================
+def _render_radar_card(item: Dict) -> str:
+    """Renderiza um card individual do radar."""
+    ticker = html.escape(item.get("ticker", ""))
+    nome = html.escape(item.get("nome", ""))
+    titulo = html.escape(item.get("titulo", ""))
+    link = item.get("link", "")
+    publisher = html.escape(item.get("publisher", "Yahoo Finance"))
+    consenso = item.get("consenso", "")
+    alvo = item.get("alvo", "")
+
+    # Linha de consenso + alvo
+    meta_parts = []
+    if consenso:
+        meta_parts.append(f"Consenso: <strong>{html.escape(consenso)}</strong>")
+    if alvo:
+        meta_parts.append(f"Alvo: <strong>{html.escape(alvo)}</strong>")
+    meta_line = " &bull; ".join(meta_parts)
+
+    return f"""
+    <tr>
+        <td style="padding-bottom: 10px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: {COLORS['bg_card']}; border-radius: 6px; border: 1px solid {COLORS['border']}; border-left: 4px solid {COLORS['primary']};">
+                <tr>
+                    <td style="padding: 14px 16px;">
+                        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                                <td>
+                                    <span style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; font-weight: 700; color: {COLORS['text_dark']};">
+                                        {nome}
+                                    </span>
+                                    <span style="font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: {COLORS['text_light']}; font-weight: 400;">
+                                        ({ticker})
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding-top: 6px;">
+                                    <a href="{link}" style="font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: {COLORS['text_medium']}; text-decoration: none; line-height: 1.5;">
+                                        {titulo}
+                                    </a>
+                                </td>
+                            </tr>
+                            {f'''<tr>
+                                <td style="padding-top: 6px;">
+                                    <span style="font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: {COLORS['primary_dark']};">
+                                        {meta_line}
+                                    </span>
+                                </td>
+                            </tr>''' if meta_line else ''}
+                            <tr>
+                                <td style="padding-top: 6px;">
+                                    <span style="font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: {COLORS['text_light']};">
+                                        Fonte: {publisher}
+                                    </span>
+                                    <a href="{link}" style="font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: {COLORS['primary']}; text-decoration: none; font-weight: 600; padding-left: 8px;">
+                                        Ler mais &rarr;
+                                    </a>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    """
+
+def _render_radar_section(title: str, flag: str, items: List[Dict]) -> str:
+    """Renderiza uma sub-seção do radar (Brasil ou EUA)."""
+    if not items:
+        return ""
+    cards = "".join([_render_radar_card(it) for it in items])
+    return f"""
+    <tr>
+        <td style="padding-top: 15px;">
+            <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 10px;">
+                <tr>
+                    <td style="border-left: 4px solid {COLORS['primary']}; padding-left: 10px;">
+                        <span style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; font-weight: 700; color: {COLORS['header_bg']}; text-transform: uppercase; letter-spacing: 0.5px;">
+                            {flag} {html.escape(title)}
+                        </span>
+                    </td>
+                </tr>
+            </table>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                {cards}
+            </table>
+        </td>
+    </tr>
+    """
+
+def bloco_radar_premium(items_br: List[Dict], items_us: List[Dict]) -> str:
+    """Bloco completo do Radar de Abertura de Mercado."""
+    if not items_br and not items_us:
+        return ""
+
+    section_br = _render_radar_section("Radar de Abertura — Brasil", "&#127463;&#127479;", items_br)
+    section_us = _render_radar_section("Radar de Abertura — EUA", "&#127482;&#127480;", items_us)
+
+    return f"""
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: {COLORS['bg_light']};">
+        <tr>
+            <td style="padding: 20px 30px;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: {COLORS['header_bg']}; border-radius: 8px;">
+                    <tr>
+                        <td style="padding: 18px 22px 8px 22px;">
+                            <table cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td style="background-color: {COLORS['primary']}; border-radius: 4px; padding: 5px 12px;">
+                                        <span style="font-family: Arial, Helvetica, sans-serif; font-size: 11px; font-weight: 700; color: #ffffff; text-transform: uppercase; letter-spacing: 1px;">
+                                            Radar de Abertura de Mercado
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="margin: 8px 0 0 0; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: rgba(255,255,255,0.7);">
+                                Principais movimentações das empresas sob monitoramento. Dados: Yahoo Finance.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 5px 22px 20px 22px;">
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                {section_br}
+                                {section_us}
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+    """
+
 # ================= Montagem Premium =================
 def render_news_card(it: Dict, traduzir: bool = False) -> str:
     quando = it.get("quando", datetime.now(TZ_BR)).strftime("%d/%m %H:%M")
@@ -719,6 +942,17 @@ def main():
     news = collect_news()
     print(f"[+] Coletadas: Brasil={len(news['Brasil'])}, Internacional={len(news['Internacional'])}, Empresas={len(news['Empresas'])}")
 
+    # Radar de Abertura
+    radar_html = ""
+    try:
+        print("[*] Coletando Radar de Abertura...")
+        radar_br = collect_radar_data(RADAR_BR, traduzir=False)
+        radar_us = collect_radar_data(RADAR_US, traduzir=True)
+        print(f"[+] Radar: BR={len(radar_br)}, US={len(radar_us)}")
+        radar_html = bloco_radar_premium(radar_br, radar_us)
+    except Exception as e:
+        print(f"[WARN] Radar falhou, continuando sem: {e}")
+
     # Montar email
     html_parts = [
         '<!DOCTYPE html>',
@@ -736,6 +970,7 @@ def main():
         '<table class="email-container" width="680" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">',
         '<tr><td>',
         get_header_html(),
+        radar_html,
         bloco_destaques_premium(news, total=4),
         bloco_cotacoes_premium(),
         bloco_noticias_premium(news.get("Internacional", []), "Internacional", traduzir=True, limit=5),
