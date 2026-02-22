@@ -1,2 +1,3 @@
 # Lista de emails descadastrados do Boletim Grupo Netuno
 # Um email por linha (case insensitive)
+gustavoportugalhamer@gmail.com
