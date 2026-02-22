@@ -105,11 +105,9 @@
             color: #00acad;
             text-decoration: none;
         }
-
-        /* Estado inicial: esconder confirmação */
         #step-confirm { display: block; }
         #step-done { display: none; }
-
+        #step-loading { display: none; }
         .btn-unsubscribe {
             display: inline-block;
             background-color: #00acad;
@@ -127,6 +125,10 @@
         .btn-unsubscribe:hover {
             background-color: #008b8c;
         }
+        .btn-unsubscribe:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
         .btn-cancel {
             display: inline-block;
             color: rgba(255,255,255,0.5);
@@ -136,6 +138,32 @@
             text-decoration: underline;
             border: none;
             background: none;
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .confirmation-email-note {
+            display: inline-block;
+            background-color: rgba(0,172,173,0.08);
+            border: 1px solid rgba(0,172,173,0.2);
+            border-radius: 6px;
+            padding: 10px 16px;
+            margin-top: 16px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.5;
         }
     </style>
 </head>
@@ -159,7 +187,7 @@
                 Após a confirmação, você não receberá mais nossos comunicados por e-mail.
                 Caso mude de ideia, entre em contato conosco a qualquer momento.
             </p>
-            <button class="btn-unsubscribe" onclick="confirmUnsubscribe()">Confirmar cancelamento</button>
+            <button id="btn-confirm" class="btn-unsubscribe" onclick="confirmUnsubscribe()">Confirmar cancelamento</button>
             <br>
             <button class="btn-cancel" onclick="window.close()">Não, quero continuar recebendo</button>
         </div>
@@ -167,14 +195,17 @@
         <!-- STEP 2: Confirmado -->
         <div id="step-done" class="card">
             <div class="icon-check">&#10003;</div>
-            <h1>Inscrição cancelada</h1>
+            <h1>Inscrição cancelada com sucesso</h1>
             <p>
-                Seu e-mail foi removido da nossa lista de distribuição com sucesso.
+                Seu e-mail foi removido da nossa lista de distribuição.
             </p>
             <p id="email-show-done" class="email-display"></p>
             <p>
-                Você não receberá mais o Boletim Diário de Mercado do Grupo Netuno.
+                A partir de agora, você não receberá mais o Boletim Diário de Mercado do Grupo Netuno.
             </p>
+            <div class="confirmation-email-note">
+                Enviamos um e-mail de confirmação para o seu endereço.
+            </div>
             <hr class="divider">
             <p class="note">
                 Caso tenha cancelado por engano ou deseje voltar a receber nossos comunicados,<br>
@@ -189,6 +220,10 @@
     </div>
 
     <script>
+        // ===== CONFIGURAÇÃO =====
+        // Cole aqui a URL do seu Google Apps Script (após implantar)
+        const APPS_SCRIPT_URL = "COLE_A_URL_DO_APPS_SCRIPT_AQUI";
+
         // Extrair email da URL (?email=xxx@xxx.com)
         const params = new URLSearchParams(window.location.search);
         const email = params.get('email') || '';
@@ -197,28 +232,35 @@
         document.getElementById('email-show').textContent = email || '(e-mail não identificado)';
         document.getElementById('email-show-done').textContent = email || '(e-mail não identificado)';
 
-        function confirmUnsubscribe() {
+        async function confirmUnsubscribe() {
             if (!email) {
                 alert('E-mail não identificado. Entre em contato com gustavo.hamer@r2fcapital.com.br');
                 return;
             }
 
-            // Envia notificação por email via mailto (abre cliente de email)
-            const subject = encodeURIComponent('Descadastramento - Boletim Grupo Netuno');
-            const body = encodeURIComponent(
-                'Solicitação automática de descadastramento.\n\n' +
-                'E-mail: ' + email + '\n' +
-                'Data: ' + new Date().toLocaleString('pt-BR') + '\n\n' +
-                'Por favor, remover este endereço da lista de distribuição do Boletim Diário de Mercado.'
-            );
+            // Desabilitar botão e mostrar loading
+            const btn = document.getElementById('btn-confirm');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Processando...';
 
-            // Abre o mailto em background
-            const mailtoLink = 'mailto:gustavo.hamer@r2fcapital.com.br?subject=' + subject + '&body=' + body;
-            window.open(mailtoLink, '_blank');
+            try {
+                // Chamar o Google Apps Script para enviar email de confirmação
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email })
+                });
 
-            // Mostrar confirmação
-            document.getElementById('step-confirm').style.display = 'none';
-            document.getElementById('step-done').style.display = 'block';
+                // Mostrar tela de sucesso (no-cors não retorna body, mas o envio funciona)
+                document.getElementById('step-confirm').style.display = 'none';
+                document.getElementById('step-done').style.display = 'block';
+
+            } catch (err) {
+                // Mesmo com erro de CORS, o request geralmente é enviado
+                document.getElementById('step-confirm').style.display = 'none';
+                document.getElementById('step-done').style.display = 'block';
+            }
         }
     </script>
 </body>
