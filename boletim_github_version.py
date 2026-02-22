@@ -32,7 +32,12 @@ DESTINATARIOS = [
     "paolaperassoli@gmail.com",
     "marketing@netunoinvestimentos.com.br",
     "carlos.ferreira@r2fcapital.com.br",
-    "carlos@r2fseguros.com"
+    "carlos@r2fseguros.com",
+    "Byanca.tavelli@uranofin.com",
+    "Pedro.barros@netunoinvestimentos.com.br",
+    "eduardo@netunoinvestimentos.com.br",
+    "andre@netunoinvestimentos.com.br",
+    "carolina@netunoinvestimentos.com.br"
 ]
 ASSUNTO_PREFIXO = "[Grupo Netuno] Boletim Diário de Mercado"
 TIMEOUT      = 18
@@ -46,6 +51,27 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NetunoBot/2.
 # ===== Credenciais via variáveis de ambiente =====
 GMAIL_USER = os.environ.get("GMAIL_USER", "")
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
+
+# ===== Unsubscribe: lista de descadastrados =====
+UNSUBSCRIBED_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "unsubscribed.txt")
+
+def load_unsubscribed() -> set:
+    """Carrega emails descadastrados do arquivo unsubscribed.txt"""
+    if not os.path.exists(UNSUBSCRIBED_FILE):
+        return set()
+    with open(UNSUBSCRIBED_FILE, "r", encoding="utf-8") as f:
+        return {line.strip().lower() for line in f if line.strip() and not line.startswith("#")}
+
+def filter_destinatarios(dest: list) -> list:
+    """Remove emails descadastrados da lista de destinatários."""
+    unsub = load_unsubscribed()
+    if not unsub:
+        return dest
+    filtered = [e for e in dest if e.strip().lower() not in unsub]
+    removed = len(dest) - len(filtered)
+    if removed:
+        print(f"[*] {removed} email(s) descadastrado(s) removido(s) da lista de envio.")
+    return filtered
 
 # ===== Paleta de Cores R2F Capital / Grupo Netuno =====
 COLORS = {
@@ -203,7 +229,11 @@ def get_header_html() -> str:
     </table>
     """
 
-def get_footer_html() -> str:
+UNSUBSCRIBE_PAGE_URL = "https://nectosapp.github.io/boletim-netuno/unsubscribe.html"
+
+def get_footer_html(dest_email: str = "") -> str:
+    from urllib.parse import quote
+    unsub_link = f"{UNSUBSCRIBE_PAGE_URL}?email={quote(dest_email)}" if dest_email else "#"
     return f"""
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: {COLORS['header_bg']};">
         <tr>
@@ -226,6 +256,23 @@ def get_footer_html() -> str:
                                 Fontes: InfoMoney, Valor Investe, Bloomberg, Reuters, Financial Times, Seeking Alpha, Brazil Journal, Yahoo Finance<br>
                                 Gerado em {datetime.now(TZ_BR).strftime('%d/%m/%Y às %H:%M')} (UTC-3) | <a href="https://r2fcapital.com.br" style="color: {COLORS['primary']}; text-decoration: none;">r2fcapital.com.br</a>
                             </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding-top: 20px; text-align: center;">
+                            <p style="margin: 0 0 12px 0; font-family: Arial, Helvetica, sans-serif; font-size: 10px; color: rgba(255,255,255,0.5); line-height: 1.5;">
+                                Você está recebendo este e-mail por fazer parte da nossa lista de distribuição.<br>
+                                Se preferir, você pode deixar de receber nossos comunicados a qualquer momento clicando no botão abaixo.
+                            </p>
+                            <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+                                <tr>
+                                    <td style="background-color: transparent; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px;">
+                                        <a href="{unsub_link}" style="display: inline-block; padding: 8px 20px; font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: rgba(255,255,255,0.7); text-decoration: none; letter-spacing: 0.5px;">
+                                            Cancelar inscrição
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
                         </td>
                     </tr>
                 </table>
@@ -732,7 +779,7 @@ def bloco_radar_premium(items_br: List[Dict], items_us: List[Dict]) -> str:
                                 </tr>
                             </table>
                             <p style="margin: 8px 0 0 0; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: rgba(255,255,255,0.7);">
-                                Principais movimentações das empresas sob monitoramento. Dados: Yahoo Finance.
+                                Principais movimentações das empresas sob monitoramento.
                             </p>
                         </td>
                     </tr>
@@ -914,7 +961,20 @@ def bloco_noticias_premium(items: List[Dict], title: str, traduzir: bool = False
     </table>
     """
 
-# ================= EMAIL (SMTP Gmail) =================
+# ================= EMAIL (SMTP Gmail / Outlook fallback) =================
+def enviar_email_outlook(dest: List[str], assunto: str, html_corpo: str):
+    """Envia email via Outlook (win32com) — usado em ambiente local."""
+    import win32com.client
+    outlook = win32com.client.Dispatch("Outlook.Application")
+    mail = outlook.CreateItem(0)
+    mail.Subject = assunto
+    mail.HTMLBody = html_corpo
+    mail.To = "; ".join(dest)
+    mail.Send()
+    account = outlook.Session.Accounts[0].SmtpAddress
+    print(f"[OK] Envio via conta: {account}")
+    print(f"[OK] E-mail enviado para {len(dest)} destinatários via Outlook.")
+
 def enviar_email_smtp(dest: List[str], assunto: str, html_corpo: str):
     """Envia email via SMTP do Gmail."""
     # Limpa possíveis quebras de linha dos secrets
@@ -922,7 +982,8 @@ def enviar_email_smtp(dest: List[str], assunto: str, html_corpo: str):
     gmail_pass = GMAIL_APP_PASSWORD.strip().replace(" ", "")
 
     if not gmail_user or not gmail_pass:
-        raise ValueError("Credenciais GMAIL_USER e GMAIL_APP_PASSWORD não configuradas!")
+        print("[WARN] Credenciais Gmail não encontradas. Usando Outlook como fallback...")
+        return enviar_email_outlook(dest, assunto, html_corpo)
 
     msg = MIMEMultipart('alternative')
     msg['Subject'] = assunto
@@ -958,43 +1019,63 @@ def main():
     except Exception as e:
         print(f"[WARN] Radar falhou, continuando sem: {e}")
 
-    # Montar email
-    html_parts = [
-        '<!DOCTYPE html>',
-        '<html lang="pt-BR">',
-        '<head>',
-        '<meta charset="UTF-8">',
-        '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
-        '<meta http-equiv="X-UA-Compatible" content="IE=edge">',
-        '<title>Boletim Grupo Netuno</title>',
-        get_email_styles(),
-        '</head>',
-        '<body style="margin: 0; padding: 0; background-color: #e5e7eb;">',
-        '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #e5e7eb;">',
-        '<tr><td align="center" style="padding: 20px 10px;">',
-        '<table class="email-container" width="680" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">',
-        '<tr><td>',
+    # Blocos de conteúdo (sem footer — será personalizado por destinatário)
+    blocos_corpo = [
         get_header_html(),
-        radar_html,
         bloco_destaques_premium(news, total=4),
+        radar_html,
         bloco_cotacoes_premium(),
         bloco_noticias_premium(news.get("Internacional", []), "Internacional", traduzir=True, limit=5),
         bloco_noticias_premium(news.get("Brasil", []), "Brasil", traduzir=False, limit=5),
         bloco_noticias_premium(news.get("Empresas", []), "Empresas", traduzir=False, limit=4),
-        get_footer_html(),
-        '</td></tr>',
-        '</table>',
-        '</td></tr>',
-        '</table>',
-        '</body>',
-        '</html>'
     ]
+    corpo = '\n'.join(blocos_corpo)
 
-    html_email = '\n'.join(html_parts)
     assunto = f"{ASSUNTO_PREFIXO} — {datetime.now(TZ_BR).strftime('%d/%m/%Y')}"
 
-    print("[*] Enviando email...")
-    enviar_email_smtp(DESTINATARIOS, assunto, html_email)
+    # Modo teste: envia só para o remetente
+    import sys
+    if "--teste" in sys.argv:
+        dest_envio = ["gustavoportugalhamer@gmail.com"]
+        print(f"[*] MODO TESTE — enviando apenas para {dest_envio[0]}")
+    else:
+        dest_envio = DESTINATARIOS
+
+    # Filtrar descadastrados
+    dest_envio = filter_destinatarios(dest_envio)
+
+    if not dest_envio:
+        print("[!] Nenhum destinatário ativo após filtrar descadastrados. Email não enviado.")
+        return
+
+    # Envio individual (cada destinatário recebe link de unsubscribe personalizado)
+    print(f"[*] Enviando email para {len(dest_envio)} destinatário(s)...")
+    for dest_email in dest_envio:
+        html_email = '\n'.join([
+            '<!DOCTYPE html>',
+            '<html lang="pt-BR">',
+            '<head>',
+            '<meta charset="UTF-8">',
+            '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+            '<meta http-equiv="X-UA-Compatible" content="IE=edge">',
+            '<title>Boletim Grupo Netuno</title>',
+            get_email_styles(),
+            '</head>',
+            '<body style="margin: 0; padding: 0; background-color: #e5e7eb;">',
+            '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #e5e7eb;">',
+            '<tr><td align="center" style="padding: 20px 10px;">',
+            '<table class="email-container" width="680" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">',
+            '<tr><td>',
+            corpo,
+            get_footer_html(dest_email),
+            '</td></tr>',
+            '</table>',
+            '</td></tr>',
+            '</table>',
+            '</body>',
+            '</html>'
+        ])
+        enviar_email_smtp([dest_email], assunto, html_email)
 
 if __name__ == "__main__":
     try:

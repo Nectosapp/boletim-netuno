@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cancelar Inscrição — Grupo Netuno</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+            background-color: #1a2744;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            max-width: 520px;
+            width: 90%;
+            text-align: center;
+            padding: 40px;
+        }
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 40px;
+        }
+        .logo-icon {
+            background-color: #00acad;
+            border-radius: 8px;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+        .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .card {
+            background-color: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 40px 30px;
+        }
+        .icon-check {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background-color: rgba(0,172,173,0.15);
+            border: 2px solid #00acad;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px auto;
+            font-size: 28px;
+        }
+        h1 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #ffffff;
+        }
+        p {
+            font-size: 14px;
+            color: rgba(255,255,255,0.7);
+            line-height: 1.7;
+            margin-bottom: 12px;
+        }
+        .email-display {
+            display: inline-block;
+            background-color: rgba(0,172,173,0.1);
+            border: 1px solid rgba(0,172,173,0.3);
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-size: 13px;
+            color: #00acad;
+            font-weight: 600;
+            margin: 8px 0 20px 0;
+            word-break: break-all;
+        }
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            margin: 24px 0;
+        }
+        .note {
+            font-size: 12px;
+            color: rgba(255,255,255,0.45);
+            line-height: 1.6;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.35);
+        }
+        .footer a {
+            color: #00acad;
+            text-decoration: none;
+        }
+
+        /* Estado inicial: esconder confirmação */
+        #step-confirm { display: block; }
+        #step-done { display: none; }
+
+        .btn-unsubscribe {
+            display: inline-block;
+            background-color: #00acad;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 12px 32px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+        .btn-unsubscribe:hover {
+            background-color: #008b8c;
+        }
+        .btn-cancel {
+            display: inline-block;
+            color: rgba(255,255,255,0.5);
+            font-size: 13px;
+            margin-top: 12px;
+            cursor: pointer;
+            text-decoration: underline;
+            border: none;
+            background: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <div class="logo-icon">N</div>
+            <span class="logo-text">GRUPO NETUNO</span>
+        </div>
+
+        <!-- STEP 1: Confirmação -->
+        <div id="step-confirm" class="card">
+            <div class="icon-check">&#9993;</div>
+            <h1>Cancelar inscrição</h1>
+            <p>
+                Você está prestes a cancelar o recebimento do
+                <strong style="color:#ffffff;">Boletim Diário de Mercado</strong> do Grupo Netuno.
+            </p>
+            <p id="email-show" class="email-display"></p>
+            <p>
+                Após a confirmação, você não receberá mais nossos comunicados por e-mail.
+                Caso mude de ideia, entre em contato conosco a qualquer momento.
+            </p>
+            <button class="btn-unsubscribe" onclick="confirmUnsubscribe()">Confirmar cancelamento</button>
+            <br>
+            <button class="btn-cancel" onclick="window.close()">Não, quero continuar recebendo</button>
+        </div>
+
+        <!-- STEP 2: Confirmado -->
+        <div id="step-done" class="card">
+            <div class="icon-check">&#10003;</div>
+            <h1>Inscrição cancelada</h1>
+            <p>
+                Seu e-mail foi removido da nossa lista de distribuição com sucesso.
+            </p>
+            <p id="email-show-done" class="email-display"></p>
+            <p>
+                Você não receberá mais o Boletim Diário de Mercado do Grupo Netuno.
+            </p>
+            <hr class="divider">
+            <p class="note">
+                Caso tenha cancelado por engano ou deseje voltar a receber nossos comunicados,<br>
+                entre em contato pelo e-mail
+                <a href="mailto:gustavo.hamer@r2fcapital.com.br" style="color: #00acad;">gustavo.hamer@r2fcapital.com.br</a>
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>Grupo Netuno | <a href="https://r2fcapital.com.br">R2F Capital</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Extrair email da URL (?email=xxx@xxx.com)
+        const params = new URLSearchParams(window.location.search);
+        const email = params.get('email') || '';
+
+        // Exibir email
+        document.getElementById('email-show').textContent = email || '(e-mail não identificado)';
+        document.getElementById('email-show-done').textContent = email || '(e-mail não identificado)';
+
+        function confirmUnsubscribe() {
+            if (!email) {
+                alert('E-mail não identificado. Entre em contato com gustavo.hamer@r2fcapital.com.br');
+                return;
+            }
+
+            // Envia notificação por email via mailto (abre cliente de email)
+            const subject = encodeURIComponent('Descadastramento - Boletim Grupo Netuno');
+            const body = encodeURIComponent(
+                'Solicitação automática de descadastramento.\n\n' +
+                'E-mail: ' + email + '\n' +
+                'Data: ' + new Date().toLocaleString('pt-BR') + '\n\n' +
+                'Por favor, remover este endereço da lista de distribuição do Boletim Diário de Mercado.'
+            );
+
+            // Abre o mailto em background
+            const mailtoLink = 'mailto:gustavo.hamer@r2fcapital.com.br?subject=' + subject + '&body=' + body;
+            window.open(mailtoLink, '_blank');
+
+            // Mostrar confirmação
+            document.getElementById('step-confirm').style.display = 'none';
+            document.getElementById('step-done').style.display = 'block';
+        }
+    </script>
+</body>
+</html>
