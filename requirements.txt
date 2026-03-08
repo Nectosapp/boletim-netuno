@@ -4,3 +4,4 @@ feedparser>=6.0.0
 readability-lxml>=0.8.1
 lxml>=4.9.0
 yfinance>=0.2.30
+python-docx>=0.8.11
