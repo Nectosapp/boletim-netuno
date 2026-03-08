@@ -1,20 +1,21 @@
-name: "[DESATIVADO] Boletim Diário (versão antiga)"
-
-# DESATIVADO — Substituído por boletim_v2.yml
-# Para reativar, descomente o bloco 'on:' abaixo
-
-#on:
-#  schedule:
-#    - cron: '0 9 * * *'
-#  workflow_dispatch:
+name: Boletim Diário Grupo Netuno (v2)
 
 on:
+  # Disparo automático de segunda a sexta às 06:30 Brasília (09:30 UTC)
+  schedule:
+    - cron: '30 9 * * 1-5'
+
+  # Permite disparo manual pelo GitHub
   workflow_dispatch:
     inputs:
-      confirm:
-        description: 'ATENÇÃO: Este workflow está DESATIVADO. Use boletim_v2.yml.'
-        required: true
-        default: 'Eu entendo que este workflow é antigo'
+      test_mode:
+        description: 'Enviar apenas para email de teste'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 jobs:
   enviar-boletim:
@@ -34,9 +35,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Executar boletim
+      - name: Executar boletim v2
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          BOLETIM_TEST_MODE: ${{ github.event.inputs.test_mode || 'false' }}
         run: |
-          python boletim_github_version.py
+          python boletim_netuno_v2.py
