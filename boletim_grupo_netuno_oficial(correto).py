@@ -30,7 +30,12 @@ DESTINATARIOS = [
     "nadine.dias@r2fcapital.com.br",
     "arthur.hamer@r2fcapital.com.br",
     "arthur@netunoinvestimentos.com.br",
-    "carloshferreira75@hotmail.com"
+    "carloshferreira75@hotmail.com",
+    "Byanca.tavelli@uranofin.com",
+    "Pedro.barros@netunoinvestimentos.com.br",
+    "eduardo@netunoinvestimentos.com.br",
+    "andre@netunoinvestimentos.com.br",
+    "carolina@netunoinvestimentos.com.br"
 ]
 ASSUNTO_PREFIXO = "[Grupo Netuno] Boletim — Internacional • Brasil • Empresas"
 TIMEOUT      = 18

@@ -32,7 +32,12 @@ DESTINATARIOS = [
     "paolaperassoli@gmail.com",
     "marketing@netunoinvestimentos.com.br",
     "carlos.ferreira@r2fcapital.com.br",
-    "carlos@r2fseguros.com"
+    "carlos@r2fseguros.com",
+    "Byanca.tavelli@uranofin.com",
+    "Pedro.barros@netunoinvestimentos.com.br",
+    "eduardo@netunoinvestimentos.com.br",
+    "andre@netunoinvestimentos.com.br",
+    "carolina@netunoinvestimentos.com.br"
 ]
 ASSUNTO_PREFIXO = "[Grupo Netuno] Boletim Diário de Mercado"
 TIMEOUT      = 18

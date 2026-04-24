@@ -25,7 +25,15 @@ import feedparser
 from readability import Document
 
 # ================== CONFIG ==================
-DESTINATARIOS   = ["gustavoportugalhamer@hotmail.com" , "gustavo.hamer@r2fcapital.com.br"]
+DESTINATARIOS   = [
+    "gustavoportugalhamer@hotmail.com",
+    "gustavo.hamer@r2fcapital.com.br",
+    "Byanca.tavelli@uranofin.com",
+    "Pedro.barros@netunoinvestimentos.com.br",
+    "eduardo@netunoinvestimentos.com.br",
+    "andre@netunoinvestimentos.com.br",
+    "carolina@netunoinvestimentos.com.br"
+]
 ASSUNTO_PREFIXO = "[Grupo Netuno] Boletim — Internacional • Brasil • Empresas"
 TIMEOUT      = 18
 SLEEP        = 0.35
