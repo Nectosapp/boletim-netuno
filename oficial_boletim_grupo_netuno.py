@@ -40,9 +40,6 @@ SCOPES     = ["https://graph.microsoft.com/Mail.Send"]
 
 DESTINATARIOS = [
     "gustavoportugalhamer@gmail.com",
-    "gustavo.hamer@r2fcapital.com.br",
-    "gustavo.sernagiotto@r2fcapital.com.br",
-    "nadine.dias@r2fcapital.com.br",
     "arthur.hamer@r2fcapital.com.br",
     "arthur@netunoinvestimentos.com.br",
     "carloshferreira75@hotmail.com"

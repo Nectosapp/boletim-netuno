@@ -11,7 +11,7 @@
 var GITHUB_TOKEN = PropertiesService.getScriptProperties().getProperty('GITHUB_TOKEN');
 var GITHUB_REPO = "Nectosapp/boletim-netuno";
 var UNSUB_FILE_PATH = "unsubscribed.txt";
-var ADMIN_EMAIL = "gustavo.hamer@r2fcapital.com.br";
+var ADMIN_EMAIL = "gustavoportugalhamer@gmail.com";
 
 function doPost(e) {
   try {
@@ -172,7 +172,7 @@ function getConfirmationEmailHtml(email) {
   '<tr><td style="padding:20px 30px; text-align:center;">' +
   '<p style="margin:0 0 6px 0; font-family:Arial,sans-serif; font-size:12px; color:#aaaaaa; line-height:1.5;">' +
   'Caso deseje voltar a receber o boletim, escreva para<br>' +
-  '<a href="mailto:gustavo.hamer@r2fcapital.com.br" style="color:#00acad; text-decoration:none;">gustavo.hamer@r2fcapital.com.br</a></p>' +
+  '<a href="mailto:gustavoportugalhamer@gmail.com" style="color:#00acad; text-decoration:none;">gustavoportugalhamer@gmail.com</a></p>' +
   '<p style="margin:8px 0 0 0; font-family:Arial,sans-serif; font-size:11px; color:#cccccc;">' +
   'Grupo Netuno | <a href="https://r2fcapital.com.br" style="color:#00acad; text-decoration:none;">R2F Capital</a></p>' +
   '</td></tr>' +

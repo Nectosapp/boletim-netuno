@@ -23,8 +23,7 @@ from readability import Document
 
 # ================== CONFIG ==================
 DESTINATARIOS = [
-    "gustavoportugalhamer@hotmail.com",
-    "gustavo.hamer@r2fcapital.com.br"
+    "gustavoportugalhamer@gmail.com",
 ]
 
 ASSUNTO_PREFIXO = "[Grupo Netuno] Boletim — Internacional • Brasil • Empresas"

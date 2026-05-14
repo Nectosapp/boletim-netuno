@@ -24,14 +24,10 @@ from readability import Document
 # ================== CONFIG ==================
 DESTINATARIOS = [
     "gustavoportugalhamer@gmail.com",
-    "gustavo.hamer@r2fcapital.com.br",
-    "gustavo.sernagiotto@r2fcapital.com.br",
-    "nadine.dias@r2fcapital.com.br",
     "arthur.hamer@r2fcapital.com.br",
     "arthur@netunoinvestimentos.com.br",
     "paolaperassoli@gmail.com",
     "marketing@netunoinvestimentos.com.br",
-    "carlos.ferreira@r2fcapital.com.br",
     "carlos@r2fseguros.com",
     "Byanca.tavelli@uranofin.com",
     "Pedro.barros@netunoinvestimentos.com.br",
