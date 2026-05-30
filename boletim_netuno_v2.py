@@ -599,6 +599,9 @@ def enviar_email_outlook(dest, assunto, html_corpo):
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 DAILY_NEWS_CRON_SECRET = os.environ.get("DAILY_NEWS_CRON_SECRET", "")
+# Anon key — só pra passar o gateway de auth da Supabase (que exige Bearer JWT).
+# A autenticação real da função continua sendo o x-cron-secret.
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
 
 
 def _strip_html_to_text(s: str) -> str:
@@ -656,6 +659,9 @@ def supabase_ingest_daily_news(news_dict, quotes_gl, radar_br, radar_us):
     if not SUPABASE_URL or not DAILY_NEWS_CRON_SECRET:
         print("[supabase] env SUPABASE_URL/DAILY_NEWS_CRON_SECRET não setadas — skip.")
         return
+    if not SUPABASE_ANON_KEY:
+        print("[supabase] env SUPABASE_ANON_KEY não setada — skip (gateway exige Bearer JWT).")
+        return
     edition_date = datetime.now(TZ_BR).strftime("%Y-%m-%d")
     insights_text = _calc_insights_text(quotes_gl)
     items = _news_items_to_payload(news_dict, radar_br, radar_us, insights_text)
@@ -668,6 +674,8 @@ def supabase_ingest_daily_news(news_dict, quotes_gl, radar_br, radar_us):
             url,
             headers={
                 "Content-Type": "application/json",
+                "Authorization": f"Bearer {SUPABASE_ANON_KEY}",
+                "apikey": SUPABASE_ANON_KEY,
                 "x-cron-secret": DAILY_NEWS_CRON_SECRET,
             },
             json={"edition_date": edition_date, "items": items},
