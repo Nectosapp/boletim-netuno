@@ -652,7 +652,20 @@ def _news_items_to_payload(news_dict, radar_br, radar_us, insights_text):
             "consensus": it.get("consenso") or "",
             "price_target": it.get("alvo") or "",
         })
-    return items
+
+    # Dedup por (category, title) — Postgres recusa duplicatas em INSERT ON CONFLICT.
+    # Dedup case-insensitive porque headlines diferem só em capitalização entre fontes.
+    seen = set()
+    deduped = []
+    for it in items:
+        key = (it.get("category", ""), (it.get("title", "") or "").strip().lower())
+        if not key[1] or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(it)
+    if len(deduped) < len(items):
+        print(f"[supabase] dedup local: {len(items) - len(deduped)} duplicatas removidas")
+    return deduped
 
 
 def supabase_ingest_daily_news(news_dict, quotes_gl, radar_br, radar_us):
