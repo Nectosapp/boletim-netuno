@@ -23,10 +23,10 @@ jobs:
 
     steps:
       - name: Checkout do repositório
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configurar Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -40,5 +40,9 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           BOLETIM_TEST_MODE: ${{ github.event.inputs.test_mode || 'false' }}
+          # Ingest pro app Netuno Investimentos. Se algum desses for vazio,
+          # o script só loga "skip" e continua o envio normal de email.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          DAILY_NEWS_CRON_SECRET: ${{ secrets.DAILY_NEWS_CRON_SECRET }}
         run: |
           python boletim_netuno_v2.py

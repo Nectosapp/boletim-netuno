@@ -458,8 +458,8 @@ def bloco_destaques(news):
     return _section(C['light'], card, "15px 30px")
 
 # ================= INSIGHTS =================
-def bloco_insights(quotes_gl):
-    """Gera 3 insights automáticos baseados nos dados de mercado."""
+def _calc_insights_text(quotes_gl):
+    """Calcula a lista de insights como texto (sem HTML). Usado por bloco_insights e pelo POST ao Supabase."""
     insights = []
 
     # Insight 1: S&P direction
@@ -509,8 +509,14 @@ def bloco_insights(quotes_gl):
                 insights.append(f"Bitcoin {dir} {fpct(btc_pct)} e é negociado a {px}")
         except: pass
 
+    return insights[:4]
+
+
+def bloco_insights(quotes_gl):
+    """Gera 3 insights automáticos baseados nos dados de mercado."""
+    insights = _calc_insights_text(quotes_gl)
     if not insights: return ""
-    bullets = "".join([f'<tr><td style="padding:4px 0;"><span style="{F}font-size:12px;color:rgba(255,255,255,0.9);line-height:1.5;">&bull; {i}</span></td></tr>' for i in insights[:4]])
+    bullets = "".join([f'<tr><td style="padding:4px 0;"><span style="{F}font-size:12px;color:rgba(255,255,255,0.9);line-height:1.5;">&bull; {i}</span></td></tr>' for i in insights])
     inner = f"""{_badge('💡 Insights do Mercado',C['teal_dk'])}
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;">{bullets}</table>"""
     card = f'<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:{C["navy"]};border-radius:8px;"><tr><td style="padding:14px 18px;">{inner}</td></tr></table>'
@@ -586,6 +592,95 @@ def enviar_email_outlook(dest, assunto, html_corpo):
     print("[OK] Email enviado via Outlook.")
 
 # ================= MAIN =================
+# ================= SUPABASE INGEST =================
+# Posta o boletim do dia no app Netuno Investimentos (edge function
+# daily-news-ingest). Requer env SUPABASE_URL e DAILY_NEWS_CRON_SECRET.
+# Não é fatal: se falhar, só loga e o email segue normal.
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+DAILY_NEWS_CRON_SECRET = os.environ.get("DAILY_NEWS_CRON_SECRET", "")
+
+
+def _strip_html_to_text(s: str) -> str:
+    if not s: return ""
+    try:
+        return BeautifulSoup(s, "lxml").get_text(separator=" ", strip=True)[:1400]
+    except Exception:
+        return re.sub(r"<[^>]+>", " ", s).strip()[:1400]
+
+
+def _news_items_to_payload(news_dict, radar_br, radar_us, insights_text):
+    items = []
+    for t in insights_text:
+        items.append({"category": "insight", "title": t})
+
+    cat_map = {"Brasil": "brasil", "Internacional": "internacional", "Empresas": "empresas"}
+    for src_key, dst_key in cat_map.items():
+        for it in news_dict.get(src_key, []):
+            title = (it.get("titulo") or "").strip()
+            if not title: continue
+            if dst_key == "internacional":
+                title = translate_to_pt(title)
+            items.append({
+                "category": dst_key,
+                "title": title,
+                "summary": _strip_html_to_text(it.get("resumo_feed") or ""),
+                "source": it.get("fonte") or it.get("srcname") or "",
+                "url": it.get("link") or "",
+            })
+
+    for it in radar_br:
+        items.append({
+            "category": "radar_br",
+            "title": (it.get("titulo") or "")[:380],
+            "source": it.get("pub") or "",
+            "url": it.get("link") or "",
+            "ticker": it.get("ticker") or "",
+            "consensus": it.get("consenso") or "",
+            "price_target": it.get("alvo") or "",
+        })
+    for it in radar_us:
+        items.append({
+            "category": "radar_us",
+            "title": (it.get("titulo") or "")[:380],
+            "source": it.get("pub") or "",
+            "url": it.get("link") or "",
+            "ticker": it.get("ticker") or "",
+            "consensus": it.get("consenso") or "",
+            "price_target": it.get("alvo") or "",
+        })
+    return items
+
+
+def supabase_ingest_daily_news(news_dict, quotes_gl, radar_br, radar_us):
+    if not SUPABASE_URL or not DAILY_NEWS_CRON_SECRET:
+        print("[supabase] env SUPABASE_URL/DAILY_NEWS_CRON_SECRET não setadas — skip.")
+        return
+    edition_date = datetime.now(TZ_BR).strftime("%Y-%m-%d")
+    insights_text = _calc_insights_text(quotes_gl)
+    items = _news_items_to_payload(news_dict, radar_br, radar_us, insights_text)
+    if not items:
+        print("[supabase] sem items pra postar — skip.")
+        return
+    url = f"{SUPABASE_URL}/functions/v1/daily-news-ingest"
+    try:
+        r = requests.post(
+            url,
+            headers={
+                "Content-Type": "application/json",
+                "x-cron-secret": DAILY_NEWS_CRON_SECRET,
+            },
+            json={"edition_date": edition_date, "items": items},
+            timeout=20,
+        )
+        if r.ok:
+            print(f"[supabase] ok ({r.status_code}): {r.text[:200]}")
+        else:
+            print(f"[supabase] FALHOU ({r.status_code}): {r.text[:400]}")
+    except Exception as e:
+        print(f"[supabase] erro de rede: {e}")
+
+
 def main():
     print("[*] Coletando notícias...")
     news = collect_news()
@@ -602,6 +697,12 @@ def main():
         radar_us = collect_radar(RADAR_US, True)
         print(f"[+] Radar: BR={len(radar_br)}, US={len(radar_us)}")
     except Exception as e: print(f"[WARN] Radar: {e}")
+
+    # Postagem pro app Netuno Investimentos (não-fatal).
+    try:
+        supabase_ingest_daily_news(news, quotes_gl, radar_br, radar_us)
+    except Exception as e:
+        print(f"[WARN] Supabase ingest falhou: {e}")
 
     styles = f"""<style type="text/css">
         body,table,td,p,a{{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}}
