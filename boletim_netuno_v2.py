@@ -27,7 +27,6 @@ import yfinance as yf
 # ================== CONFIG ==================
 DESTINATARIOS = [
     "gustavoportugalhamer@gmail.com",
-    "arthur.hamer@r2fcapital.com.br",
     "arthur@netunoinvestimentos.com.br",
     "paolaperassoli@gmail.com",
     "marketing@netunoinvestimentos.com.br",
@@ -39,7 +38,7 @@ DESTINATARIOS = [
     "carolina@netunoinvestimentos.com.br",
 ]
 TEST_MODE = os.environ.get("BOLETIM_TEST_MODE", "false").lower() == "true"
-ASSUNTO_PREFIXO = "[Grupo Netuno] Boletim Diário de Mercado"
+ASSUNTO_PREFIXO = "[Netuno Investimentos] Boletim Diário de Mercado"
 TIMEOUT      = 18
 SLEEP        = 0.35
 JANELA_DIAS  = 2
@@ -156,7 +155,7 @@ def _badge(text, bg=None):
     return f'<table cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:{bg};border-radius:4px;padding:4px 10px;"><span style="{F}font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:1px;">{text}</span></td></tr></table>'
 
 # ================= HEADER / FOOTER =================
-def get_header_html(marca: str = "GRUPO NETUNO") -> str:
+def get_header_html(marca: str = "NETUNO INVESTIMENTOS") -> str:
     data = datetime.now(TZ_BR).strftime('%d de %B de %Y').replace(
         'January','Janeiro').replace('February','Fevereiro').replace('March','Marco'
         ).replace('April','Abril').replace('May','Maio').replace('June','Junho'
@@ -197,7 +196,7 @@ def get_footer_html(dest_emails: List[str]) -> str:
     return f"""
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:{C['navy']};">
         <tr><td style="padding:25px 30px;text-align:center;">
-            <p style="margin:0 0 8px;{F}font-size:14px;font-weight:700;color:{C['teal']};">Grupo Netuno | R2F Capital</p>
+            <p style="margin:0 0 8px;{F}font-size:14px;font-weight:700;color:{C['teal']};">Netuno Investimentos</p>
             <p style="margin:0 0 12px;{F}font-size:11px;color:rgba(255,255,255,0.6);line-height:1.5;">
                 Este boletim é produzido automaticamente com informações de fontes públicas confiáveis.<br>
                 As informações não constituem recomendação de investimento.
@@ -205,7 +204,7 @@ def get_footer_html(dest_emails: List[str]) -> str:
             <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-top:1px solid rgba(255,255,255,0.1);padding-top:12px;text-align:center;">
                 <p style="margin:0 0 8px;{F}font-size:9px;color:rgba(255,255,255,0.4);line-height:1.5;">
                     Fontes: InfoMoney, Valor Investe, Exame, Bloomberg, Reuters, FT, Seeking Alpha, Brazil Journal, Yahoo Finance<br>
-                    Gerado em {datetime.now(TZ_BR).strftime('%d/%m/%Y às %H:%M')} (UTC-3) | <a href="https://r2fcapital.com.br" style="color:{C['teal']};text-decoration:none;">r2fcapital.com.br</a>
+                    Gerado em {datetime.now(TZ_BR).strftime('%d/%m/%Y às %H:%M')} (UTC-3) | <a href="https://www.netunoinvestimentos.com.br" style="color:{C['teal']};text-decoration:none;">netunoinvestimentos.com.br</a>
                 </p>
                 <p style="margin:0;{F}font-size:11px;">{unsub_links}</p>
             </td></tr></table>
@@ -577,7 +576,7 @@ def bloco_cotacoes(quotes_br, quotes_gl):
     return _section(C['light'], content, "15px 30px")
 
 # ================= EMAIL =================
-CONTA_REMETENTE = "gustavo.hamer@r2fcapital.com.br"
+CONTA_REMETENTE = "gustavo.hamer@netunoinvestimentos.com.br"
 
 def enviar_email_smtp(dest, assunto, html_corpo):
     """Envia email via SMTP do Gmail."""
@@ -612,7 +611,7 @@ def enviar_email_outlook(dest, assunto, html_corpo):
             if CONTA_REMETENTE.lower() in ea or CONTA_REMETENTE.lower() in da:
                 mail._oleobj_.Invoke(*(64209,0,8,0,acc))
                 print(f"[OK] Via: {acc.SmtpAddress}"); break
-            elif "r2fcapital.com.br" in ea or "r2fcapital.com.br" in da:
+            elif "netunoinvestimentos.com.br" in ea or "netunoinvestimentos.com.br" in da:
                 mail._oleobj_.Invoke(*(64209,0,8,0,acc))
                 print(f"[!] Via: {acc.SmtpAddress}"); break
     except Exception as e: print(f"[!] Conta: {e}")

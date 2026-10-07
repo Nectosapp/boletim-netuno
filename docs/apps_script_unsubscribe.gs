@@ -28,7 +28,7 @@ function doPost(e) {
 
     GmailApp.sendEmail(email, subject, "", {
       htmlBody: htmlBody,
-      name: "Grupo Netuno | R2F Capital",
+      name: "Netuno Investimentos",
       replyTo: "gustavoportugalhamer@gmail.com"
     });
 
@@ -121,7 +121,7 @@ function getConfirmationEmailHtml(email) {
   'Caso deseje voltar a receber o boletim, escreva para<br>' +
   '<a href="mailto:gustavoportugalhamer@gmail.com" style="color:#00acad; text-decoration:none;">gustavoportugalhamer@gmail.com</a></p>' +
   '<p style="margin:8px 0 0 0; font-family:Arial,sans-serif; font-size:11px; color:#cccccc;">' +
-  'Grupo Netuno | <a href="https://r2fcapital.com.br" style="color:#00acad; text-decoration:none;">R2F Capital</a></p>' +
+  '<a href=\"https://www.netunoinvestimentos.com.br\" style="color:#00acad; text-decoration:none;">Netuno Investimentos</a></p>' +
   '</td></tr>' +
 
   '</table></td></tr></table></body></html>';
