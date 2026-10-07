@@ -1,9 +1,10 @@
 name: Boletim Diário Grupo Netuno (v2)
 
 on:
-  # Disparo automático de segunda a sexta às 06:30 Brasília (09:30 UTC)
+  # Segunda a sexta às 06:07 Brasília (09:07 UTC): o boletim chega ao CRM bem antes do envio
+  # das 07:30. Fora da virada da hora, que é quando o agendador do GitHub mais atrasa.
   schedule:
-    - cron: '30 9 * * 1-5'
+    - cron: '7 9 * * 1-5'
 
   # Permite disparo manual pelo GitHub
   workflow_dispatch:
@@ -47,5 +48,10 @@ jobs:
           # Anon key — só pra passar o gateway de auth da Supabase (Bearer obrigatório).
           # Auth real da função é o x-cron-secret.
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          # Entrega do boletim ao CRM, que envia às 07:30 para os assinantes (desde 07/10/2026).
+          CRM_BOLETIM_URL: ${{ secrets.CRM_BOLETIM_URL }}
+          CRM_BOLETIM_SECRET: ${{ secrets.CRM_BOLETIM_SECRET }}
+          # O Gmail fica desligado: quem envia é o CRM. 'true' religa a lista antiga do script.
+          ENVIO_GMAIL: 'false'
         run: |
           python boletim_netuno_v2.py

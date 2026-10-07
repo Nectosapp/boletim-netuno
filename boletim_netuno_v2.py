@@ -49,6 +49,15 @@ TZ_BR        = timezone(timedelta(hours=-3))
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) NetunoBot/2.0"}
 UNSUBSCRIBE_BASE = "https://nectosapp.github.io/boletim-netuno/unsubscribe.html"
 
+# ===== CRM Netuno (envio aos assinantes) =====
+# Desde 07/10/2026 quem envia o boletim é o CRM (disparo diário às 07:30, só para quem assinou).
+# Aqui o boletim é montado na versão para cliente e entregue em /api/boletim/ingest.
+CRM_BOLETIM_URL = os.environ.get("CRM_BOLETIM_URL", "")
+CRM_BOLETIM_SECRET = os.environ.get("CRM_BOLETIM_SECRET", "")
+# O e-mail pelo Gmail (lista DESTINATARIOS) fica desligado: ligue com ENVIO_GMAIL=true.
+# O modo teste (workflow manual) sempre manda para o e-mail de teste.
+ENVIO_GMAIL = os.environ.get("ENVIO_GMAIL", "false").lower() == "true"
+
 # ===== Gmail SMTP =====
 GMAIL_USER = os.environ.get("GMAIL_USER", "gustavoportugalhamer@gmail.com")
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
@@ -147,7 +156,7 @@ def _badge(text, bg=None):
     return f'<table cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:{bg};border-radius:4px;padding:4px 10px;"><span style="{F}font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:1px;">{text}</span></td></tr></table>'
 
 # ================= HEADER / FOOTER =================
-def get_header_html() -> str:
+def get_header_html(marca: str = "GRUPO NETUNO") -> str:
     data = datetime.now(TZ_BR).strftime('%d de %B de %Y').replace(
         'January','Janeiro').replace('February','Fevereiro').replace('March','Marco'
         ).replace('April','Abril').replace('May','Maio').replace('June','Junho'
@@ -164,7 +173,7 @@ def get_header_html() -> str:
                     </td></tr></table>
                 </td>
                 <td style="vertical-align:middle;">
-                    <p style="margin:0;{F}font-size:22px;font-weight:700;color:#fff;letter-spacing:0.5px;">GRUPO NETUNO</p>
+                    <p style="margin:0;{F}font-size:22px;font-weight:700;color:#fff;letter-spacing:0.5px;">{marca}</p>
                     <p style="margin:2px 0 0;{F}font-size:10px;font-weight:600;color:{C['teal']};text-transform:uppercase;letter-spacing:2px;">Inteligência de Mercado</p>
                 </td>
             </tr></table>
@@ -200,6 +209,24 @@ def get_footer_html(dest_emails: List[str]) -> str:
                 </p>
                 <p style="margin:0;{F}font-size:11px;">{unsub_links}</p>
             </td></tr></table>
+        </td></tr>
+    </table>"""
+
+def get_footer_cliente_html() -> str:
+    """Rodapé da versão enviada pelo CRM: Netuno Investimentos, aviso de que não é recomendação
+    e fontes. Sem link de descadastro aqui — o CRM acrescenta o dele em todo envio."""
+    return f"""
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:{C['navy']};">
+        <tr><td style="padding:25px 30px;text-align:center;">
+            <p style="margin:0 0 8px;{F}font-size:14px;font-weight:700;color:#fff;">Netuno Investimentos</p>
+            <p style="margin:0 0 12px;{F}font-size:11px;color:rgba(255,255,255,0.7);line-height:1.5;">
+                Boletim produzido automaticamente com informações de fontes públicas.<br>
+                As informações não constituem recomendação de investimento.
+            </p>
+            <p style="margin:0;{F}font-size:9px;color:rgba(255,255,255,0.45);line-height:1.5;">
+                Fontes: InfoMoney, Valor Investe, Exame, Bloomberg, Reuters, FT, Seeking Alpha, Brazil Journal, Yahoo Finance<br>
+                Gerado em {datetime.now(TZ_BR).strftime('%d/%m/%Y às %H:%M')} (Brasília)
+            </p>
         </td></tr>
     </table>"""
 
@@ -324,7 +351,7 @@ def collect_radar(tickers, traduzir=False):
             print(f"[WARN] Radar {sym}: {e}"); continue
     return items
 
-def bloco_radar(items_br, items_us):
+def bloco_radar(items_br, items_us, com_consenso=True):
     """Radar at-a-glance: linhas compactas, não cards."""
     if not items_br and not items_us: return ""
 
@@ -333,8 +360,9 @@ def bloco_radar(items_br, items_us):
         tit = html.escape(it["titulo"]); lk = it["link"]
         pub = html.escape(it["pub"])
         meta = []
-        if it.get("consenso"): meta.append(f"<b>{html.escape(it['consenso'])}</b>")
-        if it.get("alvo"): meta.append(f"Alvo: <b>{html.escape(it['alvo'])}</b>")
+        # consenso e preço-alvo ficam fora da versão para cliente (perto demais de recomendação)
+        if com_consenso and it.get("consenso"): meta.append(f"<b>{html.escape(it['consenso'])}</b>")
+        if com_consenso and it.get("alvo"): meta.append(f"Alvo: <b>{html.escape(it['alvo'])}</b>")
         ml = " · ".join(meta)
         return f"""<tr>
             <td style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.08);">
@@ -732,6 +760,46 @@ def main():
     </style>"""
 
     assunto = f"{ASSUNTO_PREFIXO} — {datetime.now(TZ_BR).strftime('%d/%m/%Y')}"
+
+    def montar(miolo_header, miolo_radar, rodape):
+        return "\n".join([
+            '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">',
+            '<meta name="viewport" content="width=device-width,initial-scale=1.0">',
+            f'<title>Boletim de Mercado</title>{styles}</head>',
+            f'<body style="margin:0;padding:0;background:#e5e7eb;">',
+            '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e5e7eb;">',
+            '<tr><td align="center" style="padding:15px 8px;">',
+            '<table class="email-container" width="680" cellpadding="0" cellspacing="0" border="0" style="background:#fff;border-radius:12px;overflow:hidden;">',
+            '<tr><td>',
+            miolo_header,
+            bloco_destaques(news),
+            bloco_insights(quotes_gl),
+            miolo_radar,
+            bloco_cotacoes(quotes_br, quotes_gl),
+            rodape,
+            '</td></tr></table>',
+            '</td></tr></table></body></html>',
+        ])
+
+    # Versão para cliente → CRM (que envia às 07:30 para os assinantes). Não é fatal.
+    html_cliente = montar(get_header_html("NETUNO INVESTIMENTOS"), bloco_radar(radar_br, radar_us, com_consenso=False), get_footer_cliente_html())
+    assunto_cliente = f"Boletim Diário de Mercado — {datetime.now(TZ_BR).strftime('%d/%m/%Y')}"
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "preview_cliente.html"), "w", encoding="utf-8") as f:
+        f.write(html_cliente)
+    if CRM_BOLETIM_URL and CRM_BOLETIM_SECRET:
+        try:
+            r = requests.post(CRM_BOLETIM_URL, timeout=30,
+                headers={"x-boletim-secret": CRM_BOLETIM_SECRET, "content-type": "application/json"},
+                json={"data": datetime.now(TZ_BR).strftime('%Y-%m-%d'), "assunto": assunto_cliente, "html": html_cliente})
+            print(f"[CRM] entrega do boletim: HTTP {r.status_code} {r.text[:200]}")
+        except Exception as e:
+            print(f"[WARN] CRM: entrega do boletim falhou: {e}")
+    else:
+        print("[CRM] skip: CRM_BOLETIM_URL/CRM_BOLETIM_SECRET ausentes")
+
+    if not (ENVIO_GMAIL or TEST_MODE):
+        print("[*] Envio pelo Gmail desligado (quem envia é o CRM). Fim.")
+        return
 
     # Determina destinatários
     if TEST_MODE:
